@@ -1,17 +1,4 @@
 {
-  "version": 2,
-  "routes": [
-    {
-      "src": "/backoffice",
-      "dest": "/backoffice.html"
-    },
-    {
-      "src": "/tracking",
-      "dest": "/tracking.html"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
-    }
-  ]
+  "cleanUrls": true,
+  "trailingSlash": false
 }
