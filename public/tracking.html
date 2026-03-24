@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracking | Logistic</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .hero { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 60px 0; }
+    .result-card { border-left: 4px solid #ffc107; }
+    .status-badge { font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<div class="hero text-center">
+  <h1 class="fw-bold text-warning">Safe & Faster</h1>
+  <p class="fs-5">Logistics Services</p>
+  <div class="container mt-4" style="max-width:600px">
+    <div class="input-group input-group-lg shadow">
+      <input type="text" id="searchInput" class="form-control rounded-start" 
+             placeholder="ใส่ SM Code หรือ Tracking Number...">
+      <button class="btn btn-warning fw-bold px-4" onclick="doSearch()">
+        <i class="bi bi-search"></i> ค้นหา
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="container my-5">
+  <div id="loading" class="text-center d-none">
+    <div class="spinner-border text-warning"></div>
+    <p class="mt-2">กำลังค้นหา...</p>
+  </div>
+  <div id="results"></div>
+</div>
+
+<script>
+const API = window.location.origin
+
+async function doSearch() {
+  const code = document.getElementById('searchInput').value.trim()
+  if (!code) return alert('กรุณาใส่รหัสที่ต้องการค้นหา')
+
+  document.getElementById('loading').classList.remove('d-none')
+  document.getElementById('results').innerHTML = ''
+
+  const res = await fetch(`${API}/api/tracking?code=${encodeURIComponent(code)}`)
+  const data = await res.json()
+
+  document.getElementById('loading').classList.add('d-none')
+
+  let html = ''
+
+  if (data.by_sm_code?.length > 0) {
+    html += `<h5 class="mb-3"><i class="bi bi-box-seam text-warning"></i> ผลจาก SM Code</h5>`
+    data.by_sm_code.forEach(c => {
+      html += renderCard(c)
+    })
+  }
+
+  if (data.by_tracking?.length > 0) {
+    html += `<h5 class="mb-3 mt-4"><i class="bi bi-upc-scan text-primary"></i> ผลจาก Tracking Number</h5>`
+    data.by_tracking.forEach(p => {
+      html += renderProductCard(p)
+    })
+  }
+
+  if (!html) {
+    html = `<div class="alert alert-warning text-center">
+      <i class="bi bi-search fs-1"></i>
+      <p class="mt-2">ไม่พบข้อมูลสำหรับ "${code}"</p>
+    </div>`
+  }
+
+  document.getElementById('results').innerHTML = html
+}
+
+function renderCard(c) {
+  const statusColor = {
+    'arrived_cn': 'warning',
+    'arrived': 'success',
+    'active': 'primary'
+  }
+  const color = statusColor[c.last_status] || 'secondary'
+  return `
+  <div class="card mb-3 result-card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h5 class="fw-bold text-primary">${c.sm_code}</h5>
+          <p class="mb-1"><i class="bi bi-building"></i> ${c.branch_name || '-'} 
+             | <i class="bi bi-truck"></i> ${c.transport_name || '-'}</p>
+          <p class="mb-1"><i class="bi bi-calendar"></i> ${c.sm_date || '-'}</p>
+          <p class="mb-0">
+            <span class="badge bg-secondary">${c.box_total} กล่อง</span>
+            <span class="badge bg-secondary">${c.box_weight} KG</span>
+            <span class="badge bg-secondary">${c.box_cbm} CBM</span>
+          </p>
+        </div>
+        <span class="badge bg-${color} status-badge">${c.last_status}</span>
+      </div>
+      ${c.products?.length > 0 ? `
+      <hr>
+      <small class="text-muted">สินค้า ${c.products.length} รายการ</small>
+      <div class="mt-1">
+        ${c.products.map(p => `
+          <span class="badge bg-light text-dark border me-1 mb-1">
+            ${p.product_name} | ${p.product_tracking}
+          </span>
+        `).join('')}
+      </div>` : ''}
+    </div>
+  </div>`
+}
+
+function renderProductCard(p) {
+  const c = p.containers
+  return `
+  <div class="card mb-3 shadow-sm border-primary">
+    <div class="card-body">
+      <h6 class="fw-bold">${p.product_tracking}</h6>
+      <p class="mb-1">สินค้า: ${p.product_name}</p>
+      <p class="mb-1">SM Code: <strong class="text-primary">${c?.sm_code || '-'}</strong></p>
+      <p class="mb-0">
+        <span class="badge bg-secondary">${p.product_qty} ชิ้น</span>
+        <span class="badge bg-secondary">${p.product_weight_all} KG</span>
+      </p>
+    </div>
+  </div>`
+}
+
+document.getElementById('searchInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') doSearch()
+})
+</script>
+</body>
+</html>
