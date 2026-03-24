@@ -3,15 +3,15 @@
   "routes": [
     {
       "src": "/backoffice",
-      "dest": "/public/backoffice.html"
+      "dest": "/backoffice.html"
     },
     {
       "src": "/tracking",
-      "dest": "/public/tracking.html"
+      "dest": "/tracking.html"
     },
     {
       "src": "/",
-      "dest": "/public/index.html"
+      "dest": "/index.html"
     }
   ]
 }
