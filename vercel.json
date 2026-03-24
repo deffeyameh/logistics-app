@@ -1,7 +1,17 @@
 {
-  "rewrites": [
-    { "source": "/backoffice", "destination": "/public/backoffice.html" },
-    { "source": "/tracking", "destination": "/public/tracking.html" },
-    { "source": "/", "destination": "/public/index.html" }
+  "version": 2,
+  "routes": [
+    {
+      "src": "/backoffice",
+      "dest": "/public/backoffice.html"
+    },
+    {
+      "src": "/tracking",
+      "dest": "/public/tracking.html"
+    },
+    {
+      "src": "/",
+      "dest": "/public/index.html"
+    }
   ]
 }
