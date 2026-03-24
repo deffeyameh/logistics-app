@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BACKOFFICE | Logistic</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    .sidebar {
+      width: 200px;
+      min-height: 100vh;
+      background: #212529;
+    }
+    .main-container { display: flex; }
+    .content { flex: 1; overflow: hidden; }
+    .menu-item {
+      width: 87%;
+      margin: 0.5rem auto;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      transition: transform 0.2s;
+    }
+    .menu-item:hover { transform: translateY(-3px); }
+    .menu-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-decoration: none;
+      color: #333;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    .menu-link i { font-size: 2rem; margin-bottom: 0.25rem; }
+    .menu-link:hover, .menu-link:hover i { color: #007bff; }
+    .table thead { background: #dc3545; color: white; }
+    .table-hover tbody tr:hover { background: #f5f5f5; }
+    .sticky-menu { position: sticky; top: 0; z-index: 100; }
+    @media (max-width: 999px) {
+      .sidebar { display: none; }
+      .main-container { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-container">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="d-flex flex-column align-items-center gap-2 py-3">
+      <div class="menu-item">
+        <a href="/backoffice" class="menu-link">
+          <i class="bi bi-dropbox"></i>
+          <span>Receive</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a href="/tracking" class="menu-link">
+          <i class="bi bi-search"></i>
+          <span>Tracking</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content w-100">
+    
+    <!-- Filter Bar -->
+    <div class="container-fluid p-1 bg-warning">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <select id="limitSelect" class="form-select form-select-sm" style="width:80px">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+          <select id="transportSelect" class="form-select form-select-sm" style="width:100px">
+            <option value="all">EK, SEA</option>
+            <option value="ek">EK</option>
+            <option value="sea">SEA</option>
+          </select>
+          <input type="search" id="searchInput" class="form-control form-control-sm" 
+                 placeholder="ค้นหา SM Code..." style="width:200px">
+          <button class="btn btn-sm btn-success" onclick="loadData()">
+            <i class="bi bi-search"></i>
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="resetFilter()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div>
+          <span id="totalBadge" class="badge bg-dark fs-6">รวม: 0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination Top -->
+    <div class="px-2 py-1" id="paginationTop"></div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+      <table class="table table-hover mt-0 mb-0">
+        <thead class="sticky-menu">
+          <tr>
+            <th>#</th>
+            <th>SM Code</th>
+            <th>Trans</th>
+            <th>SM Date</th>
+            <th>Branch</th>
+            <th>สินค้า</th>
+            <th>Tracking</th>
+            <th>W.</th>
+            <th>CBM.</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="10" class="text-center py-5">
+            <div class="spinner-border text-warning"></div>
+            <p class="mt-2">กำลังโหลด...</p>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Bottom -->
+    <div class="px-2 py-2" id="paginationBottom"></div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = window.location.origin
+let currentPage = 1
+
+async function loadData(page = 1) {
+  currentPage = page
+  const limit = document.getElementById('limitSelect').value
+  const search = document.getElementById('searchInput').value
+  const transport = document.getElementById('transportSelect').value
+
+  document.getElementById('tableBody').innerHTML = `
+    <tr><td colspan="10" class="text-center py-5">
+      <div class="spinner-border text-warning"></div>
+    </td></tr>`
+
+  const params = new URLSearchParams({ page, limit, search, transport })
+  const res = await fetch(`${API}/api/containers?${params}`)
+  const json = await res.json()
+
+  renderTable(json.data || [])
+  renderPagination(json.page, json.last_page)
+  document.getElementById('totalBadge').textContent = `รวม: ${json.total}`
+}
+
+function renderTable(data) {
+  if (!data.length) {
+    document.getElementById('tableBody').innerHTML = `
+      <tr><td colspan="10" class="text-center py-5 text-muted">ไม่พบข้อมูล</td></tr>`
+    return
+  }
+
+  const statusColor = {
+    'arrived_cn': 'warning',
+    'arrived': 'success',
+    'active': 'primary',
+    'approved': 'info'
+  }
+
+  const rows = data.map(c => {
+    const products = c.products || []
+    const productNames = products.map(p => p.product_name).join(', ')
+    const trackings = products.map(p => 
+      `<span class="d-block small">${p.product_tracking || ''}</span>`
+    ).join('')
+    const color = statusColor[c.last_status] || 'secondary'
+
+    return `<tr>
+      <td style="color:#213df3; font-weight:bold">${c.id}</td>
+      <td>
+        <a href="#" class="text-decoration-none fw-bold" style="color:#213df3; min-width:150px; display:block">
+          ${c.sm_code}
+        </a>
+      </td>
+      <td><span class="badge bg-${c.transport_name === 'EK' ? 'primary' : 'info'}">${c.transport_name}</span></td>
+      <td class="small">${c.sm_date || '-'}</td>
+      <td><span class="badge bg-dark">${c.branch_name || '-'}</span></td>
+      <td class="small" style="max-width:200px">${productNames}</td>
+      <td class="small" style="max-width:150px">${trackings}</td>
+      <td class="small">${c.box_weight}</td>
+      <td class="small">${c.box_cbm}</td>
+      <td><span class="badge bg-${color}">${c.last_status || '-'}</span></td>
+    </tr>`
+  }).join('')
+
+  document.getElementById('tableBody').innerHTML = rows
+}
+
+function renderPagination(current, last) {
+  if (last <= 1) {
+    document.getElementById('paginationTop').innerHTML = ''
+    document.getElementById('paginationBottom').innerHTML = ''
+    return
+  }
+
+  let pages = ''
+  const start = Math.max(1, current - 2)
+  const end = Math.min(last, current + 2)
+
+  if (start > 1) pages += `<li class="page-item"><a class="page-link" onclick="loadData(1)">1</a></li>`
+  if (start > 2) pages += `<li class="page-item disabled"><span class="page-link">...</span></li>`
+
+  for (let i = start; i <= end; i++) {
+    pages += `<li class="page-item ${i === current ? 'active' : ''}">
+      <a class="page-link" onclick="loadData(${i})">${i}</a>
+    </li>`
+  }
+
+  if (end < last - 1) pages += `<li class="page-item disabled"><span class="page-link">...</span></li>`
+  if (end < last) pages += `<li class="page-item"><a class="page-link" onclick="loadData(${last})">${last}</a></li>`
+
+  const html = `<nav><ul class="pagination pagination-sm mb-0 flex-wrap">
+    <li class="page-item ${current === 1 ? 'disabled' : ''}">
+      <a class="page-link" onclick="loadData(${current-1})">‹</a>
+    </li>
+    ${pages}
+    <li class="page-item ${current === last ? 'disabled' : ''}">
+      <a class="page-link" onclick="loadData(${current+1})">›</a>
+    </li>
+  </ul></nav>`
+
+  document.getElementById('paginationTop').innerHTML = html
+  document.getElementById('paginationBottom').innerHTML = html
+}
+
+function resetFilter() {
+  document.getElementById('searchInput').value = ''
+  document.getElementById('transportSelect').value = 'all'
+  document.getElementById('limitSelect').value = '50'
+  loadData(1)
+}
+
+document.getElementById('searchInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') loadData(1)
+})
+
+loadData()
+</script>
+</body>
+</html>
+```
+
+---
+
+## ขั้นสุดท้าย — ใส่ Environment Variables บน Vercel
+
+ไปที่ Vercel → Project → **Settings → Environment Variables** แล้วเพิ่ม:
+```
+SUPABASE_URL = https://XXXXXXXX.supabase.co
+SUPABASE_KEY = eyXXXXXXXX
